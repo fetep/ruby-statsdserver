@@ -1,0 +1,15 @@
+#!/usr/bin/env ruby
+
+require "statsd"
+
+FLUSH_INTERVAL = 10
+
+EM.run do
+  EM.add_periodic_timer(FLUSH_INTERVAL) do
+    EM.defer do
+      StatsD.flush
+    end
+  end
+
+  EM.open_datagram_socket("127.0.0.1", 8125, StatsD)
+end
