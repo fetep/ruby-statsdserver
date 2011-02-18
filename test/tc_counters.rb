@@ -12,10 +12,6 @@ class CounterTest < Test::Unit::TestCase
     StatsD.flush_interval = 10
   end
 
-  def teardown
-    ## nothing
-  end
-
   def test_counters
     @data.each { |v| receive_data("#{@key}:#{v}|c") }
     parts = StatsD.carbon_update_str.split(" ")
