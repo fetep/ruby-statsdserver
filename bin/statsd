@@ -49,8 +49,6 @@ opts = OptionParser.new do |opts|
     end
     options.bind = host
     options.port = port.to_i
-    puts "options.bind=#{options.bind}"
-    puts "options.port=#{options.port}"
   end
 
   opts.on("-p", "--percent=threshold", Integer,
