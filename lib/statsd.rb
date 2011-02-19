@@ -1,14 +1,32 @@
-#!/usr/bin/ruby
-
 require "rubygems"
 require "eventmachine"
+require "logger"
 require "socket"
+require "timeout"
+require "uri"
+
+# Hack because the latest amqp gem uses String#bytesize, and not everyone
+# is running ruby 1.8.7.
+if !String.instance_methods.include?(:bytesize)
+  class String
+    alias :bytesize :length
+  end
+end
 
 module StatsD
   @@timers = Hash.new { |h, k| h[k] = Array.new }
   @@counters = Hash.new { |h, k| h[k] = 0 }
+  @@logger = Logger.new(STDERR)
+  @@logger.progname = File.basename($0)
   @@flush_interval = 10
   @@pct_threshold = 90
+  @@output_func = :output_stdout
+
+  def self.logger; return @@logger; end
+  def self.logger_output=(output)
+    @@logger = Logger.new(output)
+    @@logger.progname = File.basename($0)
+  end
 
   def self.flush_interval=(val)
     @@flush_interval = val.to_i
@@ -16,6 +34,87 @@ module StatsD
 
   def self.pct_threshold=(val)
     @@pct_threshold = val.to_i
+  end
+
+  def self.output_url=(url)
+    @@output_url = URI.parse(url)
+    scheme_mapper = {"tcp" => [nil, :output_tcp],
+                     "amqp" => [:setup_amqp, :output_amqp],
+                     "stdout" => [nil, :output_stdout],
+                     }
+    if ! scheme_mapper.has_key?(@@output_url.scheme)
+      raise TypeError, "unsupported scheme in #{url}"
+    end
+
+    setup_func, @@output_func = scheme_mapper[@@output_url.scheme]
+    self.send(setup_func) if setup_func
+  end
+
+  # TODO: option for persistent tcp connection
+  #def setup_tcp
+  #end
+
+  def self.output_tcp(packet)
+    server = TCPSocket.new(@@output_url.host, @@output_url.port)
+    server.puts packet
+    server.close
+  end
+
+  def self.setup_amqp
+    begin
+      require "amqp"
+      require "mq"
+    rescue LoadError
+      @@logger.fatal("missing amqp ruby module. try gem install amqp")
+      exit(1)
+    end
+
+    user = @@output_url.user || ""
+    user, vhost = user.split("@", 2)
+    _, mqtype, mqname = @@output_url.path.split("/", 3)
+    amqp_settings = {
+      :host => @@output_url.host,
+      :port => @@output_url.port || 5672,
+      :user => user,
+      :pass => @@output_url.password,
+      :vhost => vhost || "/",
+    }
+
+    @amqp = AMQP.connect(amqp_settings)
+    @mq = MQ.new(@amqp)
+    @target = nil
+    opts = {:durable => true,
+            :auto_delete => false,
+           }
+ 
+    if @@output_url.query
+      @@output_url.query.split("&").each do |param|
+        k, v = param.split("=", 2)
+        opts[:durable] = false if k == "durable" and v == "false"
+        opts[:auto_delete] = true if k == "autodelete" and v == "true"
+      end
+    end
+
+    @@logger.info(opts.inspect)
+
+    case mqtype
+      when "fanout"
+        @target = @mq.fanout(mqname, opts)
+      when "queue"
+        @target = @mq.queue(mqname, opts)
+      when "topic"
+        @target = @mq.topic(mqname, opts)
+      else
+        raise TypeError, "unknown mq output type #{mqname}"
+    end
+  end
+
+  def self.output_amqp(packet)
+    @target.publish(packet)
+  end
+
+  def self.output_stdout(packet)
+    $stdout.write(packet)
   end
 
   def receive_data(packet)
@@ -50,6 +149,7 @@ module StatsD
     now = Time.now.to_i
 
     @@timers.each do |key, values|
+      next if values.length == 0
       values.sort!
       min = values[0]
       max = values[-1]
@@ -85,6 +185,15 @@ module StatsD
   end
 
   def self.flush
-    puts carbon_update_str
+    s = carbon_update_str
+    return unless s
+
+    begin
+      Timeout::timeout(2) { self.send(@@output_func, s) }
+    rescue Timeout::Error
+      @@logger.warn("timed out sending update to #{@@output_url}")
+    rescue
+      @@logger.warn("error sending update to #{@@output_url}: #{$!}")
+    end
   end
 end

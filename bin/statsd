@@ -1,15 +1,104 @@
 #!/usr/bin/env ruby
 
+require "rubygems"
+require "ostruct"
+require "optparse"
 require "statsd"
 
 FLUSH_INTERVAL = 10
 
-EM.run do
-  EM.add_periodic_timer(FLUSH_INTERVAL) do
-    EM.defer do
-      StatsD.flush
-    end
+progname = File.basename($0)
+options = OpenStruct.new
+options.output_url = nil
+options.daemonize = false
+options.port = 8125
+options.bind = "0.0.0.0"
+options.pct_threshold = 90
+options.flush_interval = 10
+
+opts = OptionParser.new do |opts|
+  opts.banner = "#{progname} [-d] [-p pct] [-i sec] [-b [host:]port] -o dest"
+
+  opts.separator "Required flags:"
+  opts.on("-o", "--output=url", String,
+          "Destination for aggregate data") do |x|
+    options.output_url = x
   end
 
-  EM.open_datagram_socket("127.0.0.1", 8125, StatsD)
+  opts.separator "   output dest should be a URL, example:"
+  opts.separator "    * stdout:///"
+  opts.separator "    * tcp://graphite.host.com:2003"
+  opts.separator "    * amqp://user@vhost:pass@amqp.host.com/type/name"
+  opts.separator "      (where type is fanout, queue, or topic)"
+
+  opts.separator ""
+  opts.separator "Optional flags:"
+
+  opts.on("-d", "--[no-]daemonize",
+          "Detach from tty and fork (def false)") do |x|
+    raise NotImplementedError, "--daemonize not implemented yet"
+    #options.daemonize = x
+  end
+
+  opts.on("-b", "--bind=host:port", String,
+          "host:port to bind to for UDP listener (default 0.0.0.0:8125)") do |x|
+    host, port = x.split(":", 2)
+    if ! port  # just given a port
+      port = host
+      host = "0.0.0.0"
+    end
+    options.bind = host
+    options.port = port.to_i
+    puts "options.bind=#{options.bind}"
+    puts "options.port=#{options.port}"
+  end
+
+  opts.on("-p", "--percent=threshold", Integer,
+          "% threshold for calculating mean (def 90)") do |x|
+    options.pct_threshold = x
+  end
+
+  opts.on("-i", "--interval=seconds", Integer,
+          "Flush interval in seconds (def 10)") do |x|
+    options.flush_interval = x
+  end
+end
+
+begin
+  opts.parse!
+  raise "must specify output (-o or --output)" unless options.output_url
+  if options.pct_threshold <= 0 or options.pct_threshold > 100
+    raise "pct_threshold #{options.pct_threshold} out of range, must be 1-100"
+  end
+  if options.port <= 0 or options.pct_threshold > 2**32
+    raise "bind port #{options.port} out of range"
+  end
+rescue
+  $stderr.puts "#{progname}: #{$!}"
+  $stderr.puts opts
+  exit(1)
+end
+
+EM.run do
+  begin
+    StatsD.pct_threshold = options.pct_threshold
+    StatsD.flush_interval = options.flush_interval
+    StatsD.output_url = options.output_url
+
+    EM.add_periodic_timer(options.flush_interval) do
+      EM.defer do
+        begin
+          StatsD.flush
+        rescue
+          StatsD.logger.warn("trouble flushing: #{$!}")
+        end
+      end
+    end
+
+    EM.open_datagram_socket(options.bind, options.port, StatsD)
+  rescue
+    $stderr.puts "Exception inside of EM.run: #{$!}"
+    EM.stop_event_loop
+    exit 1
+  end
 end
