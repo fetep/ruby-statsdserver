@@ -97,7 +97,8 @@ EM.run do
 
     EM.open_datagram_socket(options.bind, options.port, StatsD)
   rescue
-    $stderr.puts "Exception inside of EM.run: #{$!}"
+    $stderr.puts "Exception inside of EM.run:"
+    $stderr.puts e
     EM.stop_event_loop
     exit 1
   end
