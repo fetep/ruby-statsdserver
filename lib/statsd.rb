@@ -21,6 +21,7 @@ module StatsD
   @@flush_interval = 10
   @@pct_threshold = 90
   @@output_func = :output_stdout
+  @@key_suffix = nil
 
   def self.logger; return @@logger; end
   def self.logger_output=(output)
@@ -34,6 +35,10 @@ module StatsD
 
   def self.pct_threshold=(val)
     @@pct_threshold = val.to_i
+  end
+
+  def self.key_suffix=(val)
+    @@key_suffix = val
   end
 
   def self.output_url=(url)
@@ -166,21 +171,23 @@ module StatsD
         mean = sum / valid_values.length
       end
 
-      updates << "stats.timers.#{key}.mean #{mean} #{now}"
-      updates << "stats.timers.#{key}.upper #{max} #{now}"
-      updates << "stats.timers.#{key}.upper_#{@@pct_threshold} " \
+      suffix = @@key_suffix ? ".#{@@key_suffix}" : ""
+      updates << "stats.timers.#{key}.mean#{suffix} #{mean} #{now}"
+      updates << "stats.timers.#{key}.upper#{suffix} #{max} #{now}"
+      updates << "stats.timers.#{key}.upper_#{@@pct_threshold}#{suffix} " \
                  "#{maxAtThreshold} #{now}"
-      updates << "stats.timers.#{key}.lower #{min} #{now}"
-      updates << "stats.timers.#{key}.count #{values.length} #{now}"
+      updates << "stats.timers.#{key}.lower#{suffix} #{min} #{now}"
+      updates << "stats.timers.#{key}.count#{suffix} #{values.length} #{now}"
     end
 
     @@counters.each do |key, value|
-      updates << "stats.#{key} #{value / @@flush_interval} #{now}"
+      suffix = @@key_suffix ? ".#{@@key_suffix}" : ""
+      updates << "stats.#{key}#{suffix} #{value / @@flush_interval} #{now}"
     end
 
     @@timers.each { |k, v| @@timers[k] = [] }
     @@counters.each { |k, v| @@counters[k] = 0 }
-  
+
     return updates.length == 0 ? nil : updates.join("\n") + "\n"
   end
 

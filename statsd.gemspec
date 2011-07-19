@@ -6,15 +6,13 @@ Gem::Specification.new do |spec|
   end
 
   spec.name = "statsd"
-  spec.version = "0.2"
+  spec.version = "0.3"
   spec.summary = "statsd -- stat collector/aggregator"
   spec.description = "collect and aggregate stats, flush to graphite"
   spec.license = "Mozilla Public License (1.1)"
 
   spec.add_dependency("eventmachine")
-
-  # If you want to use amqp:// outputs
-  #spec.add_dependency("amqp")
+  spec.add_dependency("amqp")
 
   spec.files = files
   spec.require_paths << "lib"

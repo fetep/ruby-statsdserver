@@ -15,9 +15,10 @@ options.port = 8125
 options.bind = "0.0.0.0"
 options.pct_threshold = 90
 options.flush_interval = 10
+options.key_suffix = nil
 
 opts = OptionParser.new do |opts|
-  opts.banner = "#{progname} [-d] [-p pct] [-i sec] [-b [host:]port] -o dest"
+  opts.banner = "#{progname} [-d] [-p pct] [-i sec] [-b [host:]port] [-s suffix] -o dest"
 
   opts.separator "Required flags:"
   opts.on("-o", "--output=url", String,
@@ -60,6 +61,11 @@ opts = OptionParser.new do |opts|
           "Flush interval in seconds (def 10)") do |x|
     options.flush_interval = x
   end
+
+  opts.on("-s", "--suffix=string", String,
+          "suffix to append to all key names") do |x|
+    options.key_suffix = x
+  end
 end
 
 begin
@@ -82,6 +88,7 @@ EM.run do
     StatsD.pct_threshold = options.pct_threshold
     StatsD.flush_interval = options.flush_interval
     StatsD.output_url = options.output_url
+    StatsD.key_suffix = options.key_suffix
 
     EM.add_periodic_timer(options.flush_interval) do
       EM.defer do
@@ -95,8 +102,7 @@ EM.run do
 
     EM.open_datagram_socket(options.bind, options.port, StatsD)
   rescue
-    $stderr.puts "Exception inside of EM.run:"
-    $stderr.puts e
+    $stderr.puts "Exception inside of EM.run: #{$!}"
     EM.stop_event_loop
     exit 1
   end
