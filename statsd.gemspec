@@ -5,7 +5,7 @@ Gem::Specification.new do |spec|
     files += Dir["#{dir}/**/*"]
   end
 
-  spec.name = "statsd"
+  spec.name = "petef-statsd"
   spec.version = "0.3"
   spec.summary = "statsd -- stat collector/aggregator"
   spec.description = "collect and aggregate stats, flush to graphite"
