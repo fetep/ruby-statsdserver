@@ -123,7 +123,7 @@ module StatsD
   end
 
   def receive_data(packet)
-    bits = packet.split(":")
+    bits = packet.strip.split(":")
     key = bits.shift.gsub(/\s+/, "_") \
                     .gsub(/\//, "-") \
                     .gsub(/[^a-zA-Z_\-0-9\.]/, "")
