@@ -6,7 +6,7 @@ Gem::Specification.new do |spec|
   end
 
   spec.name = "petef-statsd"
-  spec.version = "0.3"
+  spec.version = "0.4"
   spec.summary = "statsd -- stat collector/aggregator"
   spec.description = "collect and aggregate stats, flush to graphite"
   spec.license = "Mozilla Public License (1.1)"
