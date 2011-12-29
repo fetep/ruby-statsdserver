@@ -15,7 +15,9 @@ end
 
 module StatsD
   @@timers = Hash.new { |h, k| h[k] = Array.new }
+  @@timers_mutex = Mutex.new
   @@counters = Hash.new { |h, k| h[k] = 0 }
+  @@counters_mutex = Mutex.new
   @@logger = Logger.new(STDERR)
   @@logger.progname = File.basename($0)
   @@flush_interval = 10
@@ -136,13 +138,17 @@ module StatsD
       end
 
       if fields[1] == "ms" # timer update
-        @@timers[key] << fields[0].to_f
+        @@timers_mutex.synchronize do
+          @@timers[key] << fields[0].to_f
+        end
       elsif fields[1] == "c" # counter update
         count, sample_rate = fields[0].split("@", 2)
         sample_rate ||= 1
         #puts "count is #{count.to_f} (#{count})"
         #puts "multiplier is is #{1 / sample_rate.to_f}"
-        @@counters[key] += count.to_f * (1 / sample_rate.to_f)
+        @@counters_mutex.synchronize do
+          @@counters[key] += count.to_f * (1 / sample_rate.to_f)
+        end
       else
         $stderr.puts "invalid field in update: #{bit}"
       end
@@ -153,40 +159,45 @@ module StatsD
     updates = []
     now = Time.now.to_i
 
-    @@timers.each do |key, values|
-      next if values.length == 0
-      values.sort!
-      min = values[0]
-      max = values[-1]
-      mean = min
-      maxAtThreshold = min
-      if values.length > 1
-        threshold_index = ((100 - @@pct_threshold) / 100.0) * values.length
-        threshold_count = values.length - threshold_index.round
-        valid_values = values.slice(0, threshold_count)
-        maxAtThreshold = valid_values[-1]
+    @@timers_mutex.synchronize do
+      @@timers.each do |key, values|
+        next if values.length == 0
+        values.sort!
+        min = values[0]
+        max = values[-1]
+        mean = min
+        maxAtThreshold = min
+        if values.length > 1
+          threshold_index = ((100 - @@pct_threshold) / 100.0) * values.length
+          threshold_count = values.length - threshold_index.round
+          valid_values = values.slice(0, threshold_count)
+          maxAtThreshold = valid_values[-1]
 
-        sum = 0
-        valid_values.each { |v| sum += v }
-        mean = sum / valid_values.length
+          sum = 0
+          valid_values.each { |v| sum += v }
+          mean = sum / valid_values.length
+        end
+
+        suffix = @@key_suffix ? ".#{@@key_suffix}" : ""
+        updates << "stats.timers.#{key}.mean#{suffix} #{mean} #{now}"
+        updates << "stats.timers.#{key}.upper#{suffix} #{max} #{now}"
+        updates << "stats.timers.#{key}.upper_#{@@pct_threshold}#{suffix} " \
+                  "#{maxAtThreshold} #{now}"
+        updates << "stats.timers.#{key}.lower#{suffix} #{min} #{now}"
+        updates << "stats.timers.#{key}.count#{suffix} #{values.length} #{now}"
       end
 
-      suffix = @@key_suffix ? ".#{@@key_suffix}" : ""
-      updates << "stats.timers.#{key}.mean#{suffix} #{mean} #{now}"
-      updates << "stats.timers.#{key}.upper#{suffix} #{max} #{now}"
-      updates << "stats.timers.#{key}.upper_#{@@pct_threshold}#{suffix} " \
-                 "#{maxAtThreshold} #{now}"
-      updates << "stats.timers.#{key}.lower#{suffix} #{min} #{now}"
-      updates << "stats.timers.#{key}.count#{suffix} #{values.length} #{now}"
+      @@timers.each { |k, v| @@timers[k] = [] }
     end
 
-    @@counters.each do |key, value|
-      suffix = @@key_suffix ? ".#{@@key_suffix}" : ""
-      updates << "stats.#{key}#{suffix} #{value / @@flush_interval} #{now}"
-    end
+    @@counters_mutex.synchronize do
+      @@counters.each do |key, value|
+        suffix = @@key_suffix ? ".#{@@key_suffix}" : ""
+        updates << "stats.#{key}#{suffix} #{value / @@flush_interval} #{now}"
+      end
 
-    @@timers.each { |k, v| @@timers[k] = [] }
-    @@counters.each { |k, v| @@counters[k] = 0 }
+      @@counters.each { |k, v| @@counters[k] = 0 }
+    end
 
     return updates.length == 0 ? nil : updates.join("\n") + "\n"
   end
