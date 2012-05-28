@@ -194,6 +194,7 @@ module StatsD
       @@counters.each do |key, value|
         suffix = @@key_suffix ? ".#{@@key_suffix}" : ""
         updates << "stats.#{key}#{suffix} #{value / @@flush_interval} #{now}"
+        updates << "stats_counts.#{key}#{suffix} #{value} #{now}"
       end
 
       @@counters.each { |k, v| @@counters[k] = 0 }
