@@ -1,9 +1,11 @@
 #!/usr/bin/env ruby
 
+$: << File.join(File.dirname($0), "..", "lib")
+
 require "rubygems"
 require "ostruct"
 require "optparse"
-require "statsd"
+require "statsdserver"
 
 FLUSH_INTERVAL = 10
 
@@ -30,7 +32,7 @@ opts = OptionParser.new do |opts|
   opts.separator "    * stdout:///"
   opts.separator "    * tcp://graphite.host.com:2003"
   opts.separator "    * amqp://user@vhost:pass@amqp.host.com/type/name"
-  opts.separator "      (where type is fanout, queue, or topic)"
+  opts.separator "      (where type is fanout, direct, or topic)"
 
   opts.separator ""
   opts.separator "Optional flags:"
@@ -84,26 +86,26 @@ rescue
 end
 
 EM.run do
-  begin
-    StatsD.pct_threshold = options.pct_threshold
-    StatsD.flush_interval = options.flush_interval
-    StatsD.output_url = options.output_url
-    StatsD.key_suffix = options.key_suffix
+    begin
+        EM.open_datagram_socket(options.bind, options.port, StatsdServer) do |s|
+            s.output_url = options.output_url
+            s.pct_threshold = options.pct_threshold
+            s.flush_interval = options.flush_interval
+            s.key_suffix = options.key_suffix
 
-    EM.add_periodic_timer(options.flush_interval) do
-      EM.defer do
-        begin
-          StatsD.flush
-        rescue
-          StatsD.logger.warn("trouble flushing: #{$!}")
-        end
-      end
+            EM.add_periodic_timer(options.flush_interval) do
+                EM.defer do
+                    begin
+                        s.flush
+                    rescue
+                        s.logger.warn("trouble flushing: #{$!}")
+                    end
+                end # EM.defer
+            end # EM.add_periodic_timer
+        end # EM.open_datagram_socket
+    rescue
+        $stderr.puts "Exception inside of EM.run: #{$!}"
+        EM.stop_event_loop
+        exit 1
     end
-
-    EM.open_datagram_socket(options.bind, options.port, StatsD)
-  rescue
-    $stderr.puts "Exception inside of EM.run: #{$!}"
-    EM.stop_event_loop
-    exit 1
-  end
-end
+end # EM.run
