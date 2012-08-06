@@ -14,7 +14,7 @@ class StatsdServer
   attr_accessor :logger
 
   public
-  def initialize(opts, outputs)
+  def initialize(opts, input_config, output_config)
     @stats = StatsdServer::Stats.new
     @logger = Logger.new(STDERR)
     @logger.progname = File.basename($0)
@@ -26,7 +26,8 @@ class StatsdServer
       :flush_interval => 30,
       :prefix => "stats"
     }.merge(opts)
-    @outputs = outputs
+    @input_config = input_config
+    @output_config = output_config
 
     # argument checking
     [:port, :percentile, :flush_interval].each do |key|
@@ -40,12 +41,31 @@ class StatsdServer
 
   public
   def run
-    # start UDP server
-    EM.open_datagram_socket(@opts[:bind], @opts[:port].to_i,
-                            Input::Udp) do |s|
-      s.logger = @logger
-      s.stats = @stats
-    end # EM.open_datagram_socket
+    # initialize outputs
+    @outputs = []
+    @output_config.each do |output, config|
+      klass = StatsdServer::Output.const_get(output.capitalize)
+      if klass.nil?
+        @logger.fatal("unknown output #{output.inspect}")
+        exit EX_DATAERR
+      end
+      @outputs << klass.new(config)
+    end # @output_config.each
+
+    # start inputs
+    @input_config.each do |input, config|
+      case input
+      when "udp"
+        EM.open_datagram_socket(config["bind"], config["port"].to_i,
+                                Input::Udp) do |s|
+          s.logger = @logger
+          s.stats = @stats
+        end # EM.open_datagram_socket
+      else
+        @logger.fatal("unknown input #{input.inspect}")
+        exit EX_DATAERR
+      end # case input
+    end # @inputs.each
 
     # start flusher
     EM.add_periodic_timer(@opts[:flush_interval]) do

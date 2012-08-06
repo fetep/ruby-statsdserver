@@ -27,9 +27,14 @@ rescue
 end
 
 config = {}
-%w(daemonize bind port flush_interval outputs prefix percentile
+%w(daemonize inputs flush_interval outputs prefix percentile
    suffix).each do |key|
   config[key.to_sym] = config_file[key] if config_file[key]
+end
+
+if config[:inputs].nil? || config[:inputs].empty?
+  $stderr.puts "#{progname}: no inputs specified"
+  exit EX_DATAERR
 end
 
 if config[:outputs].nil? || config[:outputs].empty?
@@ -37,18 +42,17 @@ if config[:outputs].nil? || config[:outputs].empty?
   exit EX_DATAERR
 end
 
-outputs = []
+input_config = {}
+config[:inputs].split(/, */).each do |input|
+  input_config[input] = config_file["input:#{input}"] || {}
+end
+
+output_config = {}
 config[:outputs].split(/, */).each do |output|
-  klass = StatsdServer::Output.const_get(output.capitalize)
-  if klass.nil?
-    $stderr.puts "#{progname}: unknown output #{output.inspect}"
-    exit EX_DATAERR
-  end
-  output_config = config_file["output:#{output}"] || {}
-  outputs << klass.new(output_config)
+  output_config[output] = config_file["output:#{output}"] || {}
 end
 
 EM.run do
-  s = StatsdServer.new(config, outputs)
+  s = StatsdServer.new(config, input_config, output_config)
   s.run
 end
