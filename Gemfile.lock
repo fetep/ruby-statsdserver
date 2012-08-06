@@ -6,6 +6,7 @@ PATH
       bundler
       eventmachine
       parseconfig
+      sysexits
 
 GEM
   remote: http://rubygems.org/
@@ -20,6 +21,7 @@ GEM
       eventmachine
     eventmachine (0.12.10)
     parseconfig (1.0.2)
+    sysexits (1.0.2)
 
 PLATFORMS
   ruby
