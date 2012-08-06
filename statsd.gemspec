@@ -5,14 +5,17 @@ Gem::Specification.new do |spec|
     files += Dir["#{dir}/**/*"]
   end
 
-  spec.name = "petef-statsd"
+  spec.name = "statsdserver"
   spec.version = "0.3"
-  spec.summary = "statsd -- stat collector/aggregator"
+  spec.summary = "statsd (server) -- stat collector/aggregator"
   spec.description = "collect and aggregate stats, flush to graphite"
-  spec.license = "Mozilla Public License (1.1)"
+  spec.license = "Apache License 2.0"
 
-  spec.add_dependency("eventmachine")
-  spec.add_dependency("amqp")
+  spec.add_dependency("bundler")
+
+  spec.add_runtime_dependency("amqp")
+  spec.add_runtime_dependency("eventmachine")
+  spec.add_runtime_dependency("parseconfig")
 
   spec.files = files
   spec.require_paths << "lib"

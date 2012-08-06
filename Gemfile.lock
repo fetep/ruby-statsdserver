@@ -1,0 +1,28 @@
+PATH
+  remote: .
+  specs:
+    statsdserver (0.3)
+      amqp
+      bundler
+      eventmachine
+      parseconfig
+
+GEM
+  remote: http://rubygems.org/
+  specs:
+    amq-client (0.9.4)
+      amq-protocol (>= 0.9.4)
+      eventmachine
+    amq-protocol (0.9.4)
+    amqp (0.9.7)
+      amq-client (~> 0.9.4)
+      amq-protocol (>= 0.9.4)
+      eventmachine
+    eventmachine (0.12.10)
+    parseconfig (1.0.2)
+
+PLATFORMS
+  ruby
+
+DEPENDENCIES
+  statsdserver!
