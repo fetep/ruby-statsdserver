@@ -1,9 +1,6 @@
-require "rubygems"
-require "eventmachine"
 require "logger"
-require "socket"
-require "timeout"
-require "uri"
+require "statsdserver/input/udp"
+require "statsdserver/stats"
 
 # Hack because the latest amqp gem uses String#bytesize, and not everyone
 # is running ruby 1.8.7.
@@ -13,71 +10,54 @@ if !String.instance_methods.include?(:bytesize)
   end
 end
 
-class StatsdServer < EventMachine::Connection
-  attr_accessor :logger,
-                :flush_interval,
-                :percentile,
-                :key_suffix,
-                :key_prefix,
-                :outputs
-
-  attr_reader :timers,
-              :counters
+class StatsdServer
+  attr_accessor :logger
 
   public
-  def initialize
-    @timers = Hash.new { |h, k| h[k] = Array.new }
-    @counters = Hash.new { |h, k| h[k] = 0 }
+  def initialize(opts, outputs)
+    @stats = StatsdServer::Stats.new
     @logger = Logger.new(STDERR)
     @logger.progname = File.basename($0)
-  end # def initialize
 
-  public
-  def self.run(opts, outputs)
-    opts = {
+    @opts = {
       :bind => "127.0.0.1",
       :port => 8125,
       :percentile => 90,
       :flush_interval => 30,
     }.merge(opts)
+    @outputs = outputs
 
     # argument checking
     [:port, :percentile, :flush_interval].each do |key|
       begin
-        opts[key] = Float(opts[key])
+        @opts[key] = Float(@opts[key])
       rescue
-        raise "#{key}: #{opts[key].inspect}: must be a valid number"
+        raise "#{key}: #{@opts[key].inspect}: must be a valid number"
       end
     end
+  end # def initialize
 
-    #EM.run do
-      begin
-        EM.open_datagram_socket(opts[:bind], opts[:port].to_i,
-                                StatsdServer) do |s|
-          s.percentile = opts[:percentile]
-          s.flush_interval = opts[:flush_interval]
-          s.key_prefix = opts[:key_prefix]
-          s.key_suffix = opts[:key_suffix]
-          s.outputs = outputs
+  public
+  def run
+    # start UDP server
+    EM.open_datagram_socket(@opts[:bind], @opts[:port].to_i,
+                            Input::Udp) do |s|
+      s.logger = @logger
+      s.stats = @stats
+    end # EM.open_datagram_socket
 
-          EM.add_periodic_timer(opts[:flush_interval]) do
-            EM.defer do
-              begin
-                s.flush
-              rescue
-                s.logger.warn("trouble flushing: #{$!}")
-              end
-            end # EM.defer
-          end # EM.add_periodic_timer
-        end # EM.open_datagram_socket
-      rescue
-        $stderr.puts "Exception inside of EM.run: #{$!}"
-        EM.stop_event_loop
-        return 1
-      end
-    #end # EM.run
-
-    return 0
+    # start flusher
+    EM.add_periodic_timer(@opts[:flush_interval]) do
+      EM.defer do
+        begin
+          flush
+        rescue => e
+          @logger.warn("trouble flushing: #{$!}")
+          @logger.debug(e.backtrace.join("\n"))
+        end
+      end # EM.defer
+    end # EM.add_periodic_timer
+    #EM.stop_event_loop
   end # def run
 
   #private
@@ -130,40 +110,13 @@ class StatsdServer < EventMachine::Connection
 #  end # def setup_amqp
 
   public
-  def receive_data(packet)
-    packet.chomp!
-    bits = packet.split(":")
-    key = bits.shift.gsub(/\s+/, "_") \
-            .gsub(/\//, "-") \
-            .gsub(/[^a-zA-Z_\-0-9\.]/, "")
-    bits << "1" if bits.length == 0
-    bits.each do |bit|
-      fields = bit.split("|")
-      if fields.length != 2
-        $stderr.puts "invalid update: #{bit}"
-        next
-      end
-
-      if fields[1] == "ms" # timer update
-        @timers[key] << fields[0].to_f
-      elsif fields[1] == "c" # counter update
-        count, sample_rate = fields[0].split("@", 2)
-        sample_rate ||= 1
-        @counters[key] += count.to_f * (1 / sample_rate.to_f)
-      else
-        @logger.warn("invalid update (#{packet}): unkown type #{fields[1]}")
-      end
-    end
-  end # def receive_data
-
-  public
   def carbon_update_str
     updates = []
     now = Time.now.to_i
 
     timers = {}
-    @timers.each do |k, v|
-      timers[k] = @timers.delete(k)
+    @stats.timers.each do |k, v|
+      timers[k] = @stats.timers.delete(k)
     end
 
     timers.each do |key, values|
@@ -176,7 +129,7 @@ class StatsdServer < EventMachine::Connection
       mean = min
       maxAtThreshold = min
       if values.length > 1
-        threshold_index = ((100 - @percentile) / 100.0) \
+        threshold_index = ((100 - @opts[:percentile]) / 100.0) \
                   * values.length
         threshold_count = values.length - threshold_index.round
         valid_values = values.slice(0, threshold_count)
@@ -186,22 +139,24 @@ class StatsdServer < EventMachine::Connection
         mean = sum / valid_values.length
       end
 
-      suffix = @key_suffix ? ".#{@key_suffix}" : ""
-      updates << "stats.timers.#{key}.mean#{suffix} #{mean} #{now}"
-      updates << "stats.timers.#{key}.upper#{suffix} #{max} #{now}"
-      updates << "stats.timers.#{key}.upper_#{@percentile}#{suffix} " \
+      prefix = @opts[:key_prefix] ? "#{@opts[:key_prefix]}." : ""
+      suffix = @opts[:key_suffix] ? ".#{@opts[:key_suffix]}" : ""
+      updates << "#{prefix}timers.#{key}.mean#{suffix} #{mean} #{now}"
+      updates << "#{prefix}timers.#{key}.upper#{suffix} #{max} #{now}"
+      updates << "#{prefix}timers.#{key}.upper_#{@opts[:percentile]}#{suffix} " \
             "#{maxAtThreshold} #{now}"
-      updates << "stats.timers.#{key}.lower#{suffix} #{min} #{now}"
-      updates << "stats.timers.#{key}.count#{suffix} #{values.length} #{now}"
+      updates << "#{prefix}timers.#{key}.lower#{suffix} #{min} #{now}"
+      updates << "#{prefix}timers.#{key}.count#{suffix} #{values.length} #{now}"
     end # timers.each
 
     counters = {}
-    @counters.each do |k, v|
-      counters[k] = @counters.delete(k)
+    @stats.counters.each do |k, v|
+      counters[k] = @stats.counters.delete(k)
     end
     counters.each do |key, value|
-      suffix = @key_suffix ? ".#{@key_suffix}" : ""
-      updates << "stats.#{key}#{suffix} #{value / @flush_interval} #{now}"
+      prefix = @opts[:key_prefix] ? "#{@opts[:key_prefix]}." : ""
+      suffix = @opts[:key_suffix] ? ".#{@opts[:key_suffix]}" : ""
+      updates << "#{prefix}#{key}#{suffix} #{value / @opts[:flush_interval]} #{now}"
     end # counters.each
 
     return updates.length == 0 ? nil : updates.join("\n") + "\n"

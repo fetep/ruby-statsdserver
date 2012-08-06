@@ -49,5 +49,6 @@ config[:outputs].split(/, */).each do |output|
 end
 
 EM.run do
-  StatsdServer.run(config, outputs)
+  s = StatsdServer.new(config, outputs)
+  s.run
 end
