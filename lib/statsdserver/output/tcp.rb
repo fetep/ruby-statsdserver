@@ -1,3 +1,6 @@
+require "logger"
+require "socket"
+
 class StatsdServer::Output
   class Tcp
     attr_accessor :logger
