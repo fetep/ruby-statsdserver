@@ -16,7 +16,7 @@ end
 class StatsdServer < EventMachine::Connection
   attr_accessor :logger,
                 :flush_interval,
-                :pct_threshold,
+                :percentile,
                 :key_suffix,
                 :key_prefix,
                 :outputs
@@ -37,12 +37,12 @@ class StatsdServer < EventMachine::Connection
     opts = {
       :bind => "127.0.0.1",
       :port => 8125,
-      :pct_threshold => 90,
+      :percentile => 90,
       :flush_interval => 30,
     }.merge(opts)
 
     # argument checking
-    [:port, :pct_threshold, :flush_interval].each do |key|
+    [:port, :percentile, :flush_interval].each do |key|
       begin
         opts[key] = Float(opts[key])
       rescue
@@ -54,7 +54,7 @@ class StatsdServer < EventMachine::Connection
       begin
         EM.open_datagram_socket(opts[:bind], opts[:port].to_i,
                                 StatsdServer) do |s|
-          s.pct_threshold = opts[:pct_threshold]
+          s.percentile = opts[:percentile]
           s.flush_interval = opts[:flush_interval]
           s.key_prefix = opts[:key_prefix]
           s.key_suffix = opts[:key_suffix]
@@ -176,7 +176,7 @@ class StatsdServer < EventMachine::Connection
       mean = min
       maxAtThreshold = min
       if values.length > 1
-        threshold_index = ((100 - @pct_threshold) / 100.0) \
+        threshold_index = ((100 - @percentile) / 100.0) \
                   * values.length
         threshold_count = values.length - threshold_index.round
         valid_values = values.slice(0, threshold_count)
@@ -189,7 +189,7 @@ class StatsdServer < EventMachine::Connection
       suffix = @key_suffix ? ".#{@key_suffix}" : ""
       updates << "stats.timers.#{key}.mean#{suffix} #{mean} #{now}"
       updates << "stats.timers.#{key}.upper#{suffix} #{max} #{now}"
-      updates << "stats.timers.#{key}.upper_#{@pct_threshold}#{suffix} " \
+      updates << "stats.timers.#{key}.upper_#{@percentile}#{suffix} " \
             "#{maxAtThreshold} #{now}"
       updates << "stats.timers.#{key}.lower#{suffix} #{min} #{now}"
       updates << "stats.timers.#{key}.count#{suffix} #{values.length} #{now}"
