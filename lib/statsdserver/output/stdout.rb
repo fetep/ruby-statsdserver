@@ -1,7 +1,11 @@
 class StatsdServer::Output
   class Stdout
+    attr_accessor :logger
+
     public
     def initialize(opts = {})
+      @logger = Logger.new(STDERR)
+      $stdout.sync = true   # autoflush
     end
 
     public
