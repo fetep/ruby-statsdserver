@@ -24,6 +24,7 @@ class StatsdServer
       :port => 8125,
       :percentile => 90,
       :flush_interval => 30,
+      :prefix => "stats"
     }.merge(opts)
     @outputs = outputs
 
@@ -139,8 +140,8 @@ class StatsdServer
         mean = sum / valid_values.length
       end
 
-      prefix = @opts[:key_prefix] ? "#{@opts[:key_prefix]}." : ""
-      suffix = @opts[:key_suffix] ? ".#{@opts[:key_suffix]}" : ""
+      prefix = @opts[:prefix] ? "#{@opts[:prefix]}." : ""
+      suffix = @opts[:suffix] ? ".#{@opts[:suffix]}" : ""
       updates << "#{prefix}timers.#{key}.mean#{suffix} #{mean} #{now}"
       updates << "#{prefix}timers.#{key}.upper#{suffix} #{max} #{now}"
       updates << "#{prefix}timers.#{key}.upper_#{@opts[:percentile]}#{suffix} " \
@@ -154,8 +155,8 @@ class StatsdServer
       counters[k] = @stats.counters.delete(k)
     end
     counters.each do |key, value|
-      prefix = @opts[:key_prefix] ? "#{@opts[:key_prefix]}." : ""
-      suffix = @opts[:key_suffix] ? ".#{@opts[:key_suffix]}" : ""
+      prefix = @opts[:prefix] ? "#{@opts[:prefix]}." : ""
+      suffix = @opts[:suffix] ? ".#{@opts[:suffix]}" : ""
       updates << "#{prefix}#{key}#{suffix} #{value / @opts[:flush_interval]} #{now}"
     end # counters.each
 
