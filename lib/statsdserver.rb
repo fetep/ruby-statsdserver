@@ -17,10 +17,11 @@ class StatsdServer < EventMachine::Connection
   attr_accessor :logger,
                 :flush_interval,
                 :pct_threshold,
-                :key_suffix
+                :key_suffix,
+                :key_prefix,
+                :outputs
 
-  attr_reader :output_url,
-              :timers,
+  attr_reader :timers,
               :counters
 
   public
@@ -29,96 +30,108 @@ class StatsdServer < EventMachine::Connection
     @counters = Hash.new { |h, k| h[k] = 0 }
     @logger = Logger.new(STDERR)
     @logger.progname = File.basename($0)
-    @flush_interval = 10
-    @pct_threshold = 90
-    @output_func = :output_stdout
-    @key_suffix = nil
   end # def initialize
 
   public
-  def output_url=(url)
-    @output_url = URI.parse(url)
-    scheme_mapper = {"tcp" => [nil, :output_tcp],
-                     "amqp" => [:setup_amqp, :output_amqp],
-                     "stdout" => [nil, :output_stdout],
-                     }
-    if ! scheme_mapper.has_key?(@output_url.scheme)
-      raise TypeError, "unsupported scheme in #{url}"
-    end
-
-    setup_func, @output_func = scheme_mapper[@output_url.scheme]
-    send(setup_func) if setup_func
-  end
-
-  private
-  def output_tcp(packet)
-    # TODO(petef): persistent connections
-    server = TCPSocket.new(@output_url.host, @output_url.port)
-    server.puts packet
-    server.close
-  end
-
-  private
-  def setup_amqp
-    begin
-      require "amqp"
-    rescue LoadError
-      @logger.fatal("missing amqp ruby module. try gem install amqp")
-      exit(1)
-    end
-
-    user = @output_url.user || ""
-    user, vhost = user.split("@", 2)
-    _, mqtype, mqname = @output_url.path.split("/", 3)
-    amqp_settings = {
-      :host => @output_url.host,
-      :port => @output_url.port || 5672,
-      :user => user,
-      :pass => @output_url.password,
-      :vhost => vhost || "/",
-    }
-
-
-    @amqp = AMQP.connect(amqp_settings)
-    @channel = AMQP::Channel.new(@amqp)
-
+  def self.run(opts, outputs)
     opts = {
-      :durable => true,
-      :auto_delete => false,
-    }
+      :bind => "127.0.0.1",
+      :port => 8125,
+      :pct_threshold => 90,
+      :flush_interval => 30,
+    }.merge(opts)
 
-    if @output_url.query
-      @output_url.query.split("&").each do |param|
-        k, v = param.split("=", 2)
-        opts[:durable] = false if k == "durable" and v == "false"
-        opts[:auto_delete] = true if k == "autodelete" and v == "true"
+    # argument checking
+    [:port, :pct_threshold, :flush_interval].each do |key|
+      begin
+        opts[key] = Float(opts[key])
+      rescue
+        raise "#{key}: #{opts[key].inspect}: must be a valid number"
       end
     end
 
-    @exchange = case mqtype
-    when "fanout"
-      @channel.fanout(mqname, opts)
-    when "direct"
-      @channel.exchange(mqname, opts)
-    when "topic"
-      @channel.topic(mqname, opts)
-    else
-      raise TypeError, "unknown amqp output type #{mqtype}"
-    end
-  end # def setup_amqp
+    #EM.run do
+      begin
+        EM.open_datagram_socket(opts[:bind], opts[:port].to_i,
+                                StatsdServer) do |s|
+          s.pct_threshold = opts[:pct_threshold]
+          s.flush_interval = opts[:flush_interval]
+          s.key_prefix = opts[:key_prefix]
+          s.key_suffix = opts[:key_suffix]
+          s.outputs = outputs
 
-  private
-  def output_amqp(packet)
-    @exchange.publish(packet)
-  end
+          EM.add_periodic_timer(opts[:flush_interval]) do
+            EM.defer do
+              begin
+                s.flush
+              rescue
+                s.logger.warn("trouble flushing: #{$!}")
+              end
+            end # EM.defer
+          end # EM.add_periodic_timer
+        end # EM.open_datagram_socket
+      rescue
+        $stderr.puts "Exception inside of EM.run: #{$!}"
+        EM.stop_event_loop
+        return 1
+      end
+    #end # EM.run
 
-  private
-  def output_stdout(packet)
-    $stdout.write(packet)
-  end
+    return 0
+  end # def run
+
+  #private
+  #def setup_amqp
+  #  begin
+  #    require "amqp"
+  #  rescue LoadError
+  #    @logger.fatal("missing amqp ruby module. try gem install amqp")
+  #    exit(1)
+  #  end
+#
+#    user = @output_url.user || ""
+#    user, vhost = user.split("@", 2)
+#    _, mqtype, mqname = @output_url.path.split("/", 3)
+#    amqp_settings = {
+#      :host => @output_url.host,
+#      :port => @output_url.port || 5672,
+#      :user => user,
+#      :pass => @output_url.password,
+#      :vhost => vhost || "/",
+#    }
+#
+#
+#    @amqp = AMQP.connect(amqp_settings)
+#    @channel = AMQP::Channel.new(@amqp)
+#
+#    opts = {
+#      :durable => true,
+#      :auto_delete => false,
+#    }
+#
+#    if @output_url.query
+#      @output_url.query.split("&").each do |param|
+#        k, v = param.split("=", 2)
+#        opts[:durable] = false if k == "durable" and v == "false"
+#        opts[:auto_delete] = true if k == "autodelete" and v == "true"
+#      end
+#    end
+#
+#    @exchange = case mqtype
+#    when "fanout"
+#      @channel.fanout(mqname, opts)
+#    when "direct"
+#      @channel.exchange(mqname, opts)
+#    when "topic"
+#      @channel.topic(mqname, opts)
+#    else
+#      raise TypeError, "unknown amqp output type #{mqtype}"
+#    end
+#  end # def setup_amqp
 
   public
   def receive_data(packet)
+    packet.chomp!
     bits = packet.split(":")
     key = bits.shift.gsub(/\s+/, "_") \
             .gsub(/\//, "-") \
@@ -199,12 +212,13 @@ class StatsdServer < EventMachine::Connection
     s = carbon_update_str
     return unless s
 
-    begin
-      Timeout::timeout(2) { send(@output_func, s) }
-    rescue Timeout::Error
-      @logger.warn("timed out sending update to #{@output_url}")
-    rescue
-      @logger.warn("error sending update to #{@output_url}: #{$!}")
+    if @outputs.nil? or @outputs.length == 0
+      @logger.warn("no outputs configured, can't flush data")
+      return
+    end
+
+    @outputs.each do |output|
+      output.send(s)
     end
   end # def flush
 end # class StatsdServer
