@@ -174,6 +174,12 @@ class StatsdServer
     @stats.counters.each do |k, v|
       counters[k] = @stats.counters.delete(k)
     end
+
+    # Keep sending a 0 for counters (even if we don't get updates)
+    counters.keys.each do |k|
+      @stats.counters[k] ||= 0    # Keep sending a 0 if we don't get updates
+    end
+
     counters.each do |key, value|
       prefix = @opts[:prefix] ? "#{@opts[:prefix]}." : ""
       suffix = @opts[:suffix] ? ".#{@opts[:suffix]}" : ""
