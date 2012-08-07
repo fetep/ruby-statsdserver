@@ -30,7 +30,7 @@ class StatsdServer
             stats.counters[key] += count.to_f * (1 / sample_rate.to_f)
           else
             raise ParseError,
-                  "invalid update: #{packet}: unknown type #{fields[1]}"
+                  "invalid update: #{update}: unknown type #{fields[1]}"
           end
         end
       end # def parse_update
