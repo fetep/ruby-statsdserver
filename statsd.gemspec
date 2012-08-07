@@ -19,6 +19,7 @@ Gem::Specification.new do |spec|
   spec.add_runtime_dependency("eventmachine")
   spec.add_runtime_dependency("parseconfig")
   spec.add_runtime_dependency("sysexits")
+  spec.add_runtime_dependency("em-zeromq")
 
   spec.files = files
   spec.require_paths << "lib"

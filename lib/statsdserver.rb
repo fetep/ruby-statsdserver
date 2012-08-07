@@ -1,5 +1,6 @@
 require "logger"
 require "statsdserver/input/udp"
+require "statsdserver/input/zeromq"
 require "statsdserver/stats"
 
 # Hack because the latest amqp gem uses String#bytesize, and not everyone
@@ -62,6 +63,14 @@ class StatsdServer
           s.logger = @logger
           s.stats = @stats
         end # EM.open_datagram_socket
+      when "zeromq"
+        s = Input::ZeroMQ.new
+        s.logger = @logger
+        s.stats = @stats
+        $ctx = EM::ZeroMQ::Context.new(1)
+        sock = $ctx.socket(ZMQ::UPSTREAM, s)
+        sock.setsockopt(ZMQ::HWM, 100)
+        sock.bind(config["bind"])
       else
         @logger.fatal("unknown input #{input.inspect}")
         exit EX_DATAERR
@@ -69,15 +78,16 @@ class StatsdServer
     end # @inputs.each
 
     # start flusher
+    puts "starting flusher"
     EM.add_periodic_timer(@opts[:flush_interval]) do
-      EM.defer do
+      #EM.defer do
         begin
           flush
         rescue => e
           @logger.warn("trouble flushing: #{$!}")
           @logger.debug(e.backtrace.join("\n"))
         end
-      end # EM.defer
+      #end # EM.defer
     end # EM.add_periodic_timer
     #EM.stop_event_loop
   end # def run
