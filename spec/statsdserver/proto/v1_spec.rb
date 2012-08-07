@@ -20,10 +20,25 @@ describe StatsdServer::Proto::V1 do
       @stats.counters["test.counter"].should eq(7)
     end
 
+    it "should handle invalid counters" do
+      update = "test.counter:monkey|c"
+      lambda { StatsdServer::Proto::V1.parse_update(update, @stats) }.should \
+        raise_error(StatsdServer::Proto::ParseError, "invalid count: monkey")
+      @stats.counters.keys.should eq([])
+    end
+
     it "should handle counters with a sampling rate" do
       update = "test.counter:2@0.1|c"
       StatsdServer::Proto::V1.parse_update(update, @stats)
       @stats.counters["test.counter"].should eq(20)
+    end
+
+    it "should handle counters with an invalid sampling rate" do
+      update = "test.counter:2@brains|c"
+      lambda { StatsdServer::Proto::V1.parse_update(update, @stats) }.should \
+        raise_error(StatsdServer::Proto::ParseError,
+                    "invalid sample_rate: brains")
+      @stats.counters.keys.should eq([])
     end
 
     it "should handle timers" do
@@ -34,6 +49,14 @@ describe StatsdServer::Proto::V1 do
       update = "test.timer:200|ms"
       StatsdServer::Proto::V1.parse_update(update, @stats)
       @stats.timers["test.timer"].should eq([100, 200])
+    end
+
+    it "should handle timers with invalid updates" do
+      update = "test.timer:unicorn|ms"
+      lambda { StatsdServer::Proto::V1.parse_update(update, @stats) }.should \
+        raise_error(StatsdServer::Proto::ParseError,
+                    "invalid timer value: unicorn")
+      @stats.timers.keys.should eq([])
     end
 
     it "should handle timers with multiple updates" do
