@@ -23,7 +23,14 @@ class StatsdServer
           end
 
           if fields[1] == "ms" # timer update
-            stats.timers[key] << fields[0].to_i
+            if fields[0].index(",")
+              fields[0].split(",").each do |value_str|
+                value = Integer(value_str) rescue nil
+                stats.timers[key] << value if value
+              end
+            else
+              stats.timers[key] << fields[0].to_i
+            end
           elsif fields[1] == "c" # counter update
             count, sample_rate = fields[0].split("@", 2)
             sample_rate ||= 1

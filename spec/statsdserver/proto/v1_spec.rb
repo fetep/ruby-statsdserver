@@ -35,6 +35,29 @@ describe StatsdServer::Proto::V1 do
       StatsdServer::Proto::V1.parse_update(update, @stats)
       @stats.timers["test.timer"].should eq([100, 200])
     end
+
+    it "should handle timers with multiple updates" do
+      update = "test.timer:10,20,30|ms"
+      StatsdServer::Proto::V1.parse_update(update, @stats)
+      @stats.timers["test.timer"].should eq([10, 20, 30])
+    end
+
+    it "should handle timers with multiple updates and missing values" do
+      update = "test.timer:10,,20,30|ms"
+      StatsdServer::Proto::V1.parse_update(update, @stats)
+      @stats.timers["test.timer"].should eq([10, 20, 30])
+      @stats.timers.delete("test.timer")
+
+      update = "test.timer:10,20,30,|ms"
+      StatsdServer::Proto::V1.parse_update(update, @stats)
+      @stats.timers["test.timer"].should eq([10, 20, 30])
+      @stats.timers.delete("test.timer")
+
+      update = "test.timer:,10,20,30|ms"
+      StatsdServer::Proto::V1.parse_update(update, @stats)
+      @stats.timers["test.timer"].should eq([10, 20, 30])
+      @stats.timers.delete("test.timer")
+    end
   end
 
   describe ".parse" do
