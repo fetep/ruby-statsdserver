@@ -23,11 +23,11 @@ class StatsdServer
           end
 
           if fields[1] == "ms" # timer update
-            stats.timers[key] << fields[0].to_f
+            stats.timers[key] << fields[0].to_i
           elsif fields[1] == "c" # counter update
             count, sample_rate = fields[0].split("@", 2)
             sample_rate ||= 1
-            stats.counters[key] += count.to_f * (1 / sample_rate.to_f)
+            stats.counters[key] += count.to_i * (1 / sample_rate.to_i)
           else
             raise ParseError,
                   "invalid update: #{update}: unknown type #{fields[1]}"
