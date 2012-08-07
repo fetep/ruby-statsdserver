@@ -4,7 +4,7 @@ require "rubygems"
 require "zmq"
 
 ctx = ZMQ::Context.new(1)
-push = ctx.socket(ZMQ::DOWNSTREAM)
+push = ctx.socket(ZMQ::PUSH)
 puts 'connecting...'
 push.connect("tcp://127.0.0.1:8125")
 puts 'sending...'

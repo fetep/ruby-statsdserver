@@ -68,7 +68,7 @@ class StatsdServer
         s.logger = @logger
         s.stats = @stats
         $ctx = EM::ZeroMQ::Context.new(1)
-        sock = $ctx.socket(ZMQ::UPSTREAM, s)
+        sock = $ctx.socket(ZMQ::PULL, s)
         sock.setsockopt(ZMQ::HWM, 100)
         sock.bind(config["bind"])
       else
