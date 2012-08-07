@@ -12,6 +12,7 @@ end
 
 class StatsdServer
   attr_accessor :logger
+  attr_accessor :stats
 
   public
   def initialize(opts, input_config, output_config)
