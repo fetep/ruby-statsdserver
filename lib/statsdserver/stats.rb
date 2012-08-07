@@ -1,3 +1,5 @@
+require "logger"
+
 class StatsdServer
   class Stats
     attr_accessor :counters,
