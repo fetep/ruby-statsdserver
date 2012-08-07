@@ -78,18 +78,18 @@ class StatsdServer
     end # @inputs.each
 
     # start flusher
-    puts "starting flusher"
-    EM.add_periodic_timer(@opts[:flush_interval]) do
-      #EM.defer do
+    Thread.abort_on_exception = true
+    @flusher = Thread.new do
+      while sleep(@opts[:flush_interval])
+        puts "about to flush at #{Time.now}"
         begin
           flush
         rescue => e
           @logger.warn("trouble flushing: #{$!}")
           @logger.debug(e.backtrace.join("\n"))
         end
-      #end # EM.defer
-    end # EM.add_periodic_timer
-    #EM.stop_event_loop
+      end
+    end
   end # def run
 
   #private
@@ -151,6 +151,11 @@ class StatsdServer
       timers[k] = @stats.timers.delete(k)
     end
 
+    counters = {}
+    @stats.counters.each do |k, v|
+      counters[k] = @stats.counters.delete(k)
+    end
+
     timers.each do |key, values|
       next if values.length == 0
       values.sort!
@@ -180,11 +185,6 @@ class StatsdServer
       updates << "#{prefix}timers.#{key}.lower#{suffix} #{min} #{now}"
       updates << "#{prefix}timers.#{key}.count#{suffix} #{values.length} #{now}"
     end # timers.each
-
-    counters = {}
-    @stats.counters.each do |k, v|
-      counters[k] = @stats.counters.delete(k)
-    end
 
     # Keep sending a 0 for counters (even if we don't get updates)
     counters.keys.each do |k|

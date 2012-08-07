@@ -15,11 +15,9 @@ class StatsdServer
 
       public
       def on_readable(socket, parts)
-        EM.defer do
-          parts.each do |part|
-            str = part.copy_out_string
-            receive_data(str)
-          end
+        parts.each do |part|
+          str = part.copy_out_string
+          receive_data(str)
         end
       end
 
