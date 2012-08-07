@@ -81,7 +81,6 @@ class StatsdServer
     Thread.abort_on_exception = true
     @flusher = Thread.new do
       while sleep(@opts[:flush_interval])
-        puts "about to flush at #{Time.now}"
         begin
           flush
         rescue => e
