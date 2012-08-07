@@ -34,7 +34,7 @@ class StatsdServer
           elsif fields[1] == "c" # counter update
             count, sample_rate = fields[0].split("@", 2)
             sample_rate ||= 1
-            stats.counters[key] += count.to_i * (1 / sample_rate.to_i)
+            stats.counters[key] += count.to_i * (1 / sample_rate.to_f)
           else
             raise ParseError,
                   "invalid update: #{update}: unknown type #{fields[1]}"
