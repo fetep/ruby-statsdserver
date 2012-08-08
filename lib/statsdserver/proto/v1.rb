@@ -22,7 +22,7 @@ class StatsdServer
             raise ParseError, "invalid update: #{bit}"
           end
 
-          if fields[1] == "ms" # timer update
+          if fields[1] == "ms" or fields[1] == "t" # timer update
             if fields[0].index(",")
               fields[0].split(",").each do |value_str|
                 value = Integer(value_str) rescue nil

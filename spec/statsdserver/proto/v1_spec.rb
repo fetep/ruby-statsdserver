@@ -41,12 +41,22 @@ describe StatsdServer::Proto::V1 do
       @stats.counters.keys.should eq([])
     end
 
-    it "should handle timers" do
+    it "should handle timers with type ms" do
       update = "test.timer:100|ms"
       StatsdServer::Proto::V1.parse_update(update, @stats)
       @stats.timers["test.timer"].should eq([100])
 
       update = "test.timer:200|ms"
+      StatsdServer::Proto::V1.parse_update(update, @stats)
+      @stats.timers["test.timer"].should eq([100, 200])
+    end
+
+    it "should handle timers with type t" do
+      update = "test.timer:100|t"
+      StatsdServer::Proto::V1.parse_update(update, @stats)
+      @stats.timers["test.timer"].should eq([100])
+
+      update = "test.timer:200|t"
       StatsdServer::Proto::V1.parse_update(update, @stats)
       @stats.timers["test.timer"].should eq([100, 200])
     end
