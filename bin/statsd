@@ -28,7 +28,7 @@ end
 
 config = {}
 %w(daemonize inputs flush_interval outputs prefix percentile
-   suffix).each do |key|
+   suffix preserve_counters).each do |key|
   config[key.to_sym] = config_file[key] if config_file[key]
 end
 

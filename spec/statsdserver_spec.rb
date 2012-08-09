@@ -25,5 +25,13 @@ describe StatsdServer do
       res[0].should eq("stats.test.counter")
       res[1].should eq("0.0")
     end
+
+    it "should not send zeros for a known counter with no updates when preserve_counters is false" do
+      s = StatsdServer.new({:preserve_counters => "false"}, {}, {})
+      s.stats.counters["test.counter"] = 5
+
+      res = s.carbon_update_str   # "flush" the test.counter rate
+      res = s.carbon_update_str.should eq(nil)
+    end
   end
 end

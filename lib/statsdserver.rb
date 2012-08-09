@@ -26,7 +26,8 @@ class StatsdServer
       :port => 8125,
       :percentile => 90,
       :flush_interval => 30,
-      :prefix => "stats"
+      :prefix => "stats",
+      :preserve_counters => "true",
     }.merge(opts)
     @input_config = input_config
     @output_config = output_config
@@ -185,9 +186,11 @@ class StatsdServer
       updates << "#{prefix}timers.#{key}.count#{suffix} #{values.length} #{now}"
     end # timers.each
 
-    # Keep sending a 0 for counters (even if we don't get updates)
-    counters.keys.each do |k|
-      @stats.counters[k] ||= 0    # Keep sending a 0 if we don't get updates
+    if @opts[:preserve_counters] == "true"
+      # Keep sending a 0 for counters (even if we don't get updates)
+      counters.keys.each do |k|
+        @stats.counters[k] ||= 0    # Keep sending a 0 if we don't get updates
+      end
     end
 
     counters.each do |key, value|
