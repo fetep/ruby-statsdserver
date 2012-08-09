@@ -22,7 +22,14 @@ class StatsdServer::Output
     public
     def send(str)
       @socket ||= connect
-      @socket.write("#{str}\n")
+      begin
+        @socket.write("#{str}\n")
+      rescue => e
+        # set @socket to nil to force a re-connect, then pass up the exception
+        @socket.close rescue nil
+        @socket = nil
+        raise
+      end
     end
 
     private
