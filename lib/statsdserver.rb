@@ -1,6 +1,7 @@
 require "logger"
 require "statsdserver/input/udp"
 require "statsdserver/input/zeromq"
+require "statsdserver/math"
 require "statsdserver/stats"
 
 # Hack because the latest amqp gem uses String#bytesize, and not everyone
@@ -141,6 +142,13 @@ class StatsdServer
 #    end
 #  end # def setup_amqp
 
+  private
+  def metric_name(name)
+    prefix = @opts[:prefix] ? "#{@opts[:prefix]}." : ""
+    suffix = @opts[:suffix] ? ".#{@opts[:suffix]}" : ""
+    return [prefix, name, suffix].join("")
+  end
+
   public
   def carbon_update_str
     updates = []
@@ -156,36 +164,6 @@ class StatsdServer
       counters[k] = @stats.counters.delete(k)
     end
 
-    timers.each do |key, values|
-      next if values.length == 0
-      values.sort!
-
-      # do some basic summarizing of our timer data
-      min = values[0]
-      max = values[-1]
-      mean = min
-      maxAtThreshold = min
-      if values.length > 1
-        threshold_index = ((100 - @opts[:percentile]) / 100.0) \
-                  * values.length
-        threshold_count = values.length - threshold_index.round
-        valid_values = values.slice(0, threshold_count)
-        maxAtThreshold = valid_values[-1]
-        sum = 0
-        valid_values.each { |v| sum += v }
-        mean = sum / valid_values.length
-      end
-
-      prefix = @opts[:prefix] ? "#{@opts[:prefix]}." : ""
-      suffix = @opts[:suffix] ? ".#{@opts[:suffix]}" : ""
-      updates << "#{prefix}timers.#{key}.mean#{suffix} #{mean} #{now}"
-      updates << "#{prefix}timers.#{key}.upper#{suffix} #{max} #{now}"
-      updates << "#{prefix}timers.#{key}.upper_#{@opts[:percentile]}#{suffix} " \
-            "#{maxAtThreshold} #{now}"
-      updates << "#{prefix}timers.#{key}.lower#{suffix} #{min} #{now}"
-      updates << "#{prefix}timers.#{key}.count#{suffix} #{values.length} #{now}"
-    end # timers.each
-
     if @opts[:preserve_counters] == "true"
       # Keep sending a 0 for counters (even if we don't get updates)
       counters.keys.each do |k|
@@ -193,10 +171,26 @@ class StatsdServer
       end
     end
 
+    timers.each do |key, values|
+      next if values.length == 0
+      summary = ::StatsdServer::Math.summarize(values)
+
+      updates << [metric_name("timers.#{key}.mean"),
+                  summary[:mean], now].join(" ")
+      updates << [metric_name("timers.#{key}.upper"),
+                  summary[:upper], now].join(" ")
+      updates << [metric_name("timers.#{key}.lower"),
+                  summary[:lower], now].join(" ")
+      updates << [metric_name("timers.#{key}.count"),
+                  values.length, now].join(" ")
+      updates << [metric_name("timers.#{key}.upper_#{@opts[:percentile]}"),
+                  summary[:max_at_threshold], now].join(" ")
+    end # timers.each
+
     counters.each do |key, value|
-      prefix = @opts[:prefix] ? "#{@opts[:prefix]}." : ""
-      suffix = @opts[:suffix] ? ".#{@opts[:suffix]}" : ""
-      updates << "#{prefix}#{key}#{suffix} #{value / @opts[:flush_interval]} #{now}"
+      updates << [metric_name(key),
+                  value / @opts[:flush_interval],
+                  now].join(" ")
     end # counters.each
 
     return updates.length == 0 ? nil : updates.join("\n") + "\n"
