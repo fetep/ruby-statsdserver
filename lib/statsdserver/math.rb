@@ -2,14 +2,17 @@ require "logger"
 
 class StatsdServer
   module Math
-    def self.summarize(values, opts)
+    def self.summarize(values, opts = {})
+      opts = {
+        :percentile => 90,
+      }.merge(opts)
       res = {}
-      values.sort!
 
+      values.sort!
       res[:min] = values[0]
       res[:max] = values[-1]
-      res[:mean] = min
-      res[:max_at_threshold] = min
+      res[:mean] = res[:min]
+      res[:max_at_threshold] = res[:min]
       if values.length > 1
         threshold_index = ((100 - opts[:percentile]) / 100.0) * values.length
         threshold_count = values.length - threshold_index.round

@@ -173,7 +173,7 @@ class StatsdServer
 
     timers.each do |key, values|
       next if values.length == 0
-      summary = ::StatsdServer::Math.summarize(values)
+      summary = ::StatsdServer::Math.summarize(values, @opts)
 
       updates << [metric_name("timers.#{key}.mean"),
                   summary[:mean], now].join(" ")
