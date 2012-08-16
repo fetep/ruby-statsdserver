@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    statsdserver (0.3)
+    statsdserver (0.5pre)
       amqp
       bundler
       em-zeromq
@@ -26,7 +26,7 @@ GEM
       ffi (>= 1.0.0)
       ffi-rzmq (= 0.9.3)
     eventmachine (1.0.0.beta.4)
-    ffi (1.1.4)
+    ffi (1.1.5)
     ffi-rzmq (0.9.3)
       ffi
     parseconfig (1.0.2)
