@@ -4,6 +4,7 @@
 require "rubygems"
 require "bundler/setup"
 
+require "daemons"
 require "parseconfig"
 require "statsdserver"
 require "statsdserver/output/stdout"
@@ -42,14 +43,24 @@ if config[:outputs].nil? || config[:outputs].empty?
   exit EX_DATAERR
 end
 
+config[:inputs] = config[:inputs].split(/, */)
 input_config = {}
-config[:inputs].split(/, */).each do |input|
+config[:inputs].each do |input|
   input_config[input] = config_file["input:#{input}"] || {}
 end
 
+config[:outputs] = config[:outputs].split(/, */)
 output_config = {}
-config[:outputs].split(/, */).each do |output|
+config[:outputs].each do |output|
   output_config[output] = config_file["output:#{output}"] || {}
+end
+
+if config_file["daemonize"] == "true"
+  if config[:outputs].include?("stdout")
+    $stderr.puts "#{progname}: output stdout is not compatible with daemonize"
+    exit EX_DATAERR
+  end
+  Daemons.daemonize(:app_name => progname)
 end
 
 EM.run do
