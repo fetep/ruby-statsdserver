@@ -144,8 +144,18 @@ class StatsdServer
 
   private
   def metric_name(name)
-    prefix = @opts[:prefix] ? "#{@opts[:prefix]}." : ""
-    suffix = @opts[:suffix] ? ".#{@opts[:suffix]}" : ""
+    if @opts[:prefix] && !@opts[:prefix].empty?
+      prefix = @opts[:prefix] + "."
+    else
+      prefix = ""
+    end
+
+    if @opts[:suffix] && !@opts[:suffix].empty?
+      suffix = @opts[:suffix] + "."
+    else
+      suffix = ""
+    end
+
     return [prefix, name, suffix].join("")
   end
 
