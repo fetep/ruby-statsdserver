@@ -1,5 +1,4 @@
 require "logger"
-require "bunny"
 
 class StatsdServer::Output
   class Amqp
@@ -7,6 +6,15 @@ class StatsdServer::Output
 
     public
     def initialize(opts = {})
+      begin
+        require "bunny"
+      rescue LoadError => e
+        raise unless e.message =~ /bunny/
+        new_e = e.exception("Please install the bunny gem for AMQP output.")
+        new_e.set_backtrace(e.backtrace)
+        raise new_e
+      end
+
       if opts["exchange_type"].nil?
         raise ArgumentError, "missing host in [output:tcp] config section"
       end

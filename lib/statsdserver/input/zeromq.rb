@@ -1,4 +1,3 @@
-require "em-zeromq"
 require "logger"
 require "statsdserver/proto/v1"
 
@@ -10,6 +9,16 @@ class StatsdServer
 
       public
       def initialize
+        begin
+          require "em-zeromq"
+        rescue LoadError => e
+          raise unless e.message =~ /em-zeromq/
+          new_e = \
+            e.exception("Please install the em-zeromq gem for ZeroMQ input.")
+          new_e.set_backtrace(e.backtrace)
+          raise new_e
+        end
+
         @logger = Logger.new(STDOUT)
       end
 
