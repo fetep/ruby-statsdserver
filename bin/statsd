@@ -7,8 +7,9 @@ require "bundler/setup"
 require "daemons"
 require "parseconfig"
 require "statsdserver"
-require "statsdserver/output/stdout"
+require "statsdserver/output/amqp"
 require "statsdserver/output/tcp"
+require "statsdserver/output/stdout"
 require "sysexits"
 
 include Sysexits

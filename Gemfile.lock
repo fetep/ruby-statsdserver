@@ -2,8 +2,8 @@ PATH
   remote: .
   specs:
     statsdserver (0.5pre)
-      amqp
       bundler
+      bunny
       daemons
       em-zeromq
       eventmachine
@@ -13,14 +13,7 @@ PATH
 GEM
   remote: http://rubygems.org/
   specs:
-    amq-client (0.9.4)
-      amq-protocol (>= 0.9.4)
-      eventmachine
-    amq-protocol (0.9.4)
-    amqp (0.9.7)
-      amq-client (~> 0.9.4)
-      amq-protocol (>= 0.9.4)
-      eventmachine
+    bunny (0.8.0)
     daemons (1.1.9)
     diff-lcs (1.1.3)
     em-zeromq (0.3.0)
