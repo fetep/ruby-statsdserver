@@ -25,6 +25,5 @@ class StatsdServer
 
       return res
     end
-
   end # class Math
 end # class StatsdServer
