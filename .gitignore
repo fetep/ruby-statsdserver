@@ -1,1 +1,3 @@
 *.swp
+*.gem
+bench/bench
