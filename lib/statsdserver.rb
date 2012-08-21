@@ -165,12 +165,12 @@ class StatsdServer
     now = Time.now.to_i
 
     timers = {}
-    @stats.timers.each do |k, v|
+    @stats.timers.keys.each do |k|
       timers[k] = @stats.timers.delete(k)
     end
 
     counters = {}
-    @stats.counters.each do |k, v|
+    @stats.counters.keys.each do |k|
       counters[k] = @stats.counters.delete(k)
     end
 
