@@ -51,7 +51,7 @@ class StatsdServer::Output
         @opts["exchange_name"],
         :type => @opts["exchange_type"].to_sym,
         :durable => @opts["exchange_durable"] == "true" ? true : false,
-        :auto_delete => @opts["exchange_auto_delete"] == "true" ? true : false,
+        :auto_delete => @opts["exchange_auto_delete"] == "true" ? true : false
       )
 
       return bunny, exchange
