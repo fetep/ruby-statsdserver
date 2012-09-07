@@ -151,7 +151,7 @@ class StatsdServer
     end
 
     if @opts[:suffix] && !@opts[:suffix].empty?
-      suffix = @opts[:suffix] + "."
+      suffix = "." + @opts[:suffix]
     else
       suffix = ""
     end
