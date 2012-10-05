@@ -47,5 +47,20 @@ describe StatsdServer do
       res = s.carbon_update_str.split(" ")
       res[0].should eq("stats.test.counter.foo.bar")
     end
-  end
+
+    it "should calculate statistics for timers" do
+      s = StatsdServer.new({}, {}, {})
+      1.upto(10) { |i| s.stats.timers["test.timer"] << i }
+      result = {}
+      s.carbon_update_str.split("\n").each do |line|
+        metric, value, _unused = line.split(" ")
+        result[metric] = value
+      end
+      result["stats.timers.test.timer.lower"].should eq("1")
+      result["stats.timers.test.timer.mean"].should eq("5")
+      result["stats.timers.test.timer.upper"].should eq("10")
+      result["stats.timers.test.timer.upper_90"].should eq("9")
+      result["stats.timers.test.timer.count"].should eq("10")
+    end
+  end # describe carbon_update_str
 end

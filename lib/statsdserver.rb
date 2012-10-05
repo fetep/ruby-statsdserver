@@ -188,12 +188,12 @@ class StatsdServer
       updates << [metric_name("timers.#{key}.mean"),
                   summary[:mean], now].join(" ")
       updates << [metric_name("timers.#{key}.upper"),
-                  summary[:upper], now].join(" ")
+                  summary[:max], now].join(" ")
       updates << [metric_name("timers.#{key}.lower"),
-                  summary[:lower], now].join(" ")
+                  summary[:min], now].join(" ")
       updates << [metric_name("timers.#{key}.count"),
                   values.length, now].join(" ")
-      updates << [metric_name("timers.#{key}.upper_#{@opts[:percentile]}"),
+      updates << [metric_name("timers.#{key}.upper_#{@opts[:percentile].to_i}"),
                   summary[:max_at_threshold], now].join(" ")
     end # timers.each
 
