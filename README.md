@@ -41,7 +41,7 @@ the routing key), so make sure your carbon configuration has:
 
 ## Config File
 
-[An example config file](https://github.com/fetep/ruby-statsd/blob/master/etc/statsd.conf)
+[An example config file](https://github.com/fetep/ruby-statsdserver/blob/master/etc/statsd.conf)
 is included, along with comments about each option.
 
 ## Run-time
