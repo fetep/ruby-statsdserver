@@ -165,11 +165,13 @@ class StatsdServer
     now = Time.now.to_i
 
     timers = {}
+    counters = {}
+    gauges = {}
+
     @stats.timers.keys.each do |k|
       timers[k] = @stats.timers.delete(k)
     end
 
-    counters = {}
     @stats.counters.keys.each do |k|
       counters[k] = @stats.counters.delete(k)
     end
@@ -202,6 +204,12 @@ class StatsdServer
                   value / @opts[:flush_interval],
                   now].join(" ")
     end # counters.each
+
+    gauges.each do |key, value|
+      updates << [metric_name(key),
+                  value / @opts[:flush_interval],
+                  now].join(" ")
+    end # gauges.each
 
     return updates.length == 0 ? nil : updates.join("\n") + "\n"
   end # def carbon_update_str
