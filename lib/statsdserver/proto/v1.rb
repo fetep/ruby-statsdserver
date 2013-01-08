@@ -56,7 +56,7 @@ class StatsdServer
             stats.counters[key] += count.to_i * (1 / sample_rate.to_f)
             
           elsif fields[1] == "g" # gauge update
-            value = Integer(fields[0]) rescue nil
+            value = Float(fields[0]) rescue nil
             if value.nil?
               raise ParseError, "invalid gauge value: #{fields[0]}"
             end
