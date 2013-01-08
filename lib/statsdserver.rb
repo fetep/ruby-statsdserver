@@ -174,7 +174,7 @@ class StatsdServer
 
     @stats.gauges.keys.each do |k|
       #gauges[k] = @stats.gauges.delete(k)
-      #gauges[k] = stats.gauges[k]
+      gauges[k] = stats.gauges[k]
     end
 
     @stats.counters.keys.each do |k|
@@ -212,7 +212,7 @@ class StatsdServer
 
     gauges.each do |key, value|
       updates << [metric_name(key),
-                  value / @opts[:flush_interval],
+                  value,
                   now].join(" ")
     end # gauges.each
 
