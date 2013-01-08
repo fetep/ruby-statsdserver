@@ -7,11 +7,11 @@ introducing the statsd concept.
 ## Protocol
 
 see PROTOCOL.md. It's basically compatible with all of the other major
-statsd implementations of `timers` and `counters`.
+statsd implementations of `timers`, `gauges`, and `counters`.
 
 ## Features
 
-* supports standard UDP input (timers + counters)
+* supports standard UDP input (timers + gauges + counters)
 * supports zeromq input (for high throughput applications)
 * supports multi-value timer updates (for clients that want to do some aggregating of update messages)
 * supports amqp output (helpful if you want >1 consumer of the stats stream)
