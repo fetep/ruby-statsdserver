@@ -193,7 +193,7 @@ class StatsdServer
       next if values.length == 0
       summary = ::StatsdServer::Math.summarize(values, @opts)
       if @opts[:inject_timer_names] == "true"
-        met_name, clu_name, hos_name = string.match(/(.*)\.([_0-9a-z]*)\.([_0-9a-z]*)/i).captures
+        met_name, clu_name, hos_name = key.match(/(.*)\.([_0-9a-z]*)\.([_0-9a-z]*)/i).captures
 
         updates << [metric_name("timers.#{met_name}.mean.#{clu_name}.#{hos_name}"),
                     summary[:mean], now].join(" ")
