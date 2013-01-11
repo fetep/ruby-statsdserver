@@ -91,6 +91,27 @@ describe StatsdServer::Proto::V1 do
       @stats.timers["test.timer"].should eq([10, 20, 30])
       @stats.timers.delete("test.timer")
     end
+
+    it "should handle gauges" do
+      update = "test.gauge:1|g"
+      StatsdServer::Proto::V1.parse_update(update, @stats)
+      @stats.gauges["test.gauge"].should eq(1)
+
+      StatsdServer::Proto::V1.parse_update(update, @stats)
+      @stats.gauges["test.gauge"].should eq(2)
+
+      update = "test.gauge:5|g"
+      StatsdServer::Proto::V1.parse_update(update, @stats)
+      @stats.gauges["test.gauge"].should eq(7)
+    end
+
+    it "should handle invalid gauges" do
+      update = "test.gauge:donkey|g"
+      lambda { StatsdServer::Proto::V1.parse_update(update, @stats) }.should \
+        raise_error(StatsdServer::Proto::ParseError, "invalid count: donkey")
+      @stats.gauges.keys.should eq([])
+    end
+
   end
 
   describe ".parse" do
