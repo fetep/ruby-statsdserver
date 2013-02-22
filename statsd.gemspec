@@ -6,7 +6,7 @@ Gem::Specification.new do |spec|
   end
 
   spec.name = "statsdserver"
-  spec.version = "0.9.1pre"
+  spec.version = "0.9"
   spec.summary = "statsd (server) -- stat collector/aggregator"
   spec.description = "collect and aggregate stats, flush to graphite"
   spec.license = "Apache License 2.0"
