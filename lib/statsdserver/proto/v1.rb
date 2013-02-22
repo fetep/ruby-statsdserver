@@ -61,7 +61,7 @@ class StatsdServer
               raise ParseError, "invalid gauge value: #{fields[0]}"
             end
 
-            stats.gauges[key] = fields[0]
+            stats.gauges[key] = value
 
           else
             raise ParseError,
