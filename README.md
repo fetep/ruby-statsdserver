@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/fetep/ruby-statsdserver.png)](https://travis-ci.org/fetep/ruby-statsdserver)
+
 ## Overview
 
 `statsd` is a graphite frontend that aggregates data.  For more information,
