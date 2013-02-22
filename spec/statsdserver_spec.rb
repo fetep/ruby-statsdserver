@@ -48,6 +48,24 @@ describe StatsdServer do
       res[0].should eq("stats.test.counter.foo.bar")
     end
 
+    it "should default to timer name before suffix" do
+      s = StatsdServer.new({:suffix => "foo.bar"}, {}, {})
+      s.stats.timers["test.timer"] = [1, 1, 1]
+      res = s.carbon_update_str.split(" ")
+      res[0].should eq("stats.timers.test.timer.mean.foo.bar")
+    end
+
+    it "should allow timer name after suffix" do
+      opts = {
+          :suffix => "foo.bar",
+          :timer_names_before_suffix => "false",
+      }
+      s = StatsdServer.new(opts, {}, {})
+      s.stats.timers["test.timer"] = [1, 1, 1]
+      res = s.carbon_update_str.split(" ")
+      res[0].should eq("stats.timers.test.timer.foo.bar.mean")
+    end
+
     it "should calculate statistics for timers" do
       s = StatsdServer.new({}, {}, {})
       1.upto(10) { |i| s.stats.timers["test.timer"] << i }

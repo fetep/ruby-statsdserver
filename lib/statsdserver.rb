@@ -29,7 +29,7 @@ class StatsdServer
       :flush_interval => 30,
       :prefix => "stats",
       :preserve_counters => "true",
-      :inject_timer_names => "false",
+      :timer_names_before_suffix => "true",
     }.merge(opts)
     @input_config = input_config
     @output_config = output_config
@@ -192,20 +192,7 @@ class StatsdServer
     timers.each do |key, values|
       next if values.length == 0
       summary = ::StatsdServer::Math.summarize(values, @opts)
-      if @opts[:inject_timer_names] == "true"
-        met_name, clu_name, hos_name = key.match(/(.*)\.([^\.]*)\.([^\.]*)/i).captures
-
-        updates << [metric_name("timers.#{met_name}.mean.#{clu_name}.#{hos_name}"),
-                    summary[:mean], now].join(" ")
-        updates << [metric_name("timers.#{met_name}.upper.#{clu_name}.#{hos_name}"),
-                    summary[:max], now].join(" ")
-        updates << [metric_name("timers.#{met_name}.lower.#{clu_name}.#{hos_name}"),
-                    summary[:min], now].join(" ")
-        updates << [metric_name("timers.#{met_name}.count.#{clu_name}.#{hos_name}"),
-                    values.length, now].join(" ")
-        updates << [metric_name("timers.#{met_name}.upper_#{@opts[:percentile].to_i}.#{clu_name}.#{hos_name}"),
-                    summary[:max_at_threshold], now].join(" ")
-      else
+      if @opts[:timer_names_before_suffix] == "true"
         updates << [metric_name("timers.#{key}.mean"),
                     summary[:mean], now].join(" ")
         updates << [metric_name("timers.#{key}.upper"),
@@ -215,6 +202,17 @@ class StatsdServer
         updates << [metric_name("timers.#{key}.count"),
                     values.length, now].join(" ")
         updates << [metric_name("timers.#{key}.upper_#{@opts[:percentile].to_i}"),
+                    summary[:max_at_threshold], now].join(" ")
+      else
+        updates << [metric_name("timers.#{key}") + ".mean",
+                    summary[:mean], now].join(" ")
+        updates << [metric_name("timers.#{key}") + ".upper",
+                    summary[:max], now].join(" ")
+        updates << [metric_name("timers.#{key}") + ".lower",
+                    summary[:min], now].join(" ")
+        updates << [metric_name("timers.#{key}") + ".count",
+                    values.length, now].join(" ")
+        updates << [metric_name("timers.#{key}") + ".upper_#{@opts[:percentile].to_i}",
                     summary[:max_at_threshold], now].join(" ")
       end
     end # timers.each
