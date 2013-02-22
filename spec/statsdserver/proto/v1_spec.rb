@@ -95,20 +95,21 @@ describe StatsdServer::Proto::V1 do
     it "should handle gauges" do
       update = "test.gauge:1|g"
       StatsdServer::Proto::V1.parse_update(update, @stats)
-      @stats.gauges["test.gauge"].should eq(1)
+      @stats.gauges["test.gauge"].should eq(1.0)
 
       StatsdServer::Proto::V1.parse_update(update, @stats)
-      @stats.gauges["test.gauge"].should eq(2)
+      @stats.gauges["test.gauge"].should eq(1.0)
 
       update = "test.gauge:5|g"
       StatsdServer::Proto::V1.parse_update(update, @stats)
-      @stats.gauges["test.gauge"].should eq(7)
+      @stats.gauges["test.gauge"].should eq(5.0)
     end
 
     it "should handle invalid gauges" do
       update = "test.gauge:donkey|g"
       lambda { StatsdServer::Proto::V1.parse_update(update, @stats) }.should \
-        raise_error(StatsdServer::Proto::ParseError, "invalid count: donkey")
+        raise_error(StatsdServer::Proto::ParseError,
+                    "invalid gauge value: donkey")
       @stats.gauges.keys.should eq([])
     end
 
