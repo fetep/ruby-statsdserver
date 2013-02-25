@@ -23,7 +23,7 @@ describe StatsdServer::Proto::V1 do
     it "should handle invalid counters" do
       update = "test.counter:monkey|c"
       lambda { StatsdServer::Proto::V1.parse_update(update, @stats) }.should \
-        raise_error(StatsdServer::Proto::ParseError, "invalid count: monkey")
+        raise_error(StatsdServer::Proto::ParseError, "invalid count for test.counter: monkey")
       @stats.counters.keys.should eq([])
     end
 
@@ -37,7 +37,7 @@ describe StatsdServer::Proto::V1 do
       update = "test.counter:2@brains|c"
       lambda { StatsdServer::Proto::V1.parse_update(update, @stats) }.should \
         raise_error(StatsdServer::Proto::ParseError,
-                    "invalid sample_rate: brains")
+                    "invalid sample_rate for test.counter: brains")
       @stats.counters.keys.should eq([])
     end
 
@@ -65,7 +65,7 @@ describe StatsdServer::Proto::V1 do
       update = "test.timer:unicorn|ms"
       lambda { StatsdServer::Proto::V1.parse_update(update, @stats) }.should \
         raise_error(StatsdServer::Proto::ParseError,
-                    "invalid timer value: unicorn")
+                    "invalid timer value for test.timer: unicorn")
       @stats.timers.keys.should eq([])
     end
 
@@ -109,7 +109,7 @@ describe StatsdServer::Proto::V1 do
       update = "test.gauge:donkey|g"
       lambda { StatsdServer::Proto::V1.parse_update(update, @stats) }.should \
         raise_error(StatsdServer::Proto::ParseError,
-                    "invalid gauge value: donkey")
+                    "invalid gauge value for test.gauge: donkey")
       @stats.gauges.keys.should eq([])
     end
 
