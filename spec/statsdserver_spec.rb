@@ -80,5 +80,20 @@ describe StatsdServer do
       result["stats.timers.test.timer.upper_90"].should eq("9")
       result["stats.timers.test.timer.count"].should eq("10")
     end
+
+    it "should calculate statistics for timers with float values" do
+      s = StatsdServer.new({}, {}, {})
+      1.upto(10) { |i| s.stats.timers["test.timer"] << (i.to_f / 2) }
+      result = {}
+      s.carbon_update_str.split("\n").each do |line|
+        metric, value, _unused = line.split(" ")
+        result[metric] = value
+      end
+      result["stats.timers.test.timer.lower"].should eq("0.5")
+      result["stats.timers.test.timer.mean"].should eq("2.5")
+      result["stats.timers.test.timer.upper"].should eq("5.0")
+      result["stats.timers.test.timer.upper_90"].should eq("4.5")
+      result["stats.timers.test.timer.count"].should eq("10")
+    end
   end # describe carbon_update_str
 end

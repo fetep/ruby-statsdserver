@@ -25,15 +25,15 @@ class StatsdServer
           if fields[1] == "ms" or fields[1] == "t" # timer update
             if fields[0].index(",")
               fields[0].split(",").each do |value_str|
-                value = Integer(value_str) rescue nil
+                value = Float(value_str) rescue nil
                 stats.timers[key] << value if value
               end
             else
-              value = Integer(fields[0]) rescue nil
+              value = Float(fields[0]) rescue nil
               if value.nil?
                 raise ParseError, "invalid timer value for #{key}: #{fields[0]}"
               end
-              stats.timers[key] << fields[0].to_i
+              stats.timers[key] << value
             end
 
           elsif fields[1] == "c" # counter update

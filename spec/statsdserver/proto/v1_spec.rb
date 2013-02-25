@@ -44,21 +44,31 @@ describe StatsdServer::Proto::V1 do
     it "should handle timers with type ms" do
       update = "test.timer:100|ms"
       StatsdServer::Proto::V1.parse_update(update, @stats)
-      @stats.timers["test.timer"].should eq([100])
+      @stats.timers["test.timer"].should eq([100.0])
 
       update = "test.timer:200|ms"
       StatsdServer::Proto::V1.parse_update(update, @stats)
-      @stats.timers["test.timer"].should eq([100, 200])
+      @stats.timers["test.timer"].should eq([100.0, 200.0])
     end
 
     it "should handle timers with type t" do
       update = "test.timer:100|t"
       StatsdServer::Proto::V1.parse_update(update, @stats)
-      @stats.timers["test.timer"].should eq([100])
+      @stats.timers["test.timer"].should eq([100.0])
 
       update = "test.timer:200|t"
       StatsdServer::Proto::V1.parse_update(update, @stats)
-      @stats.timers["test.timer"].should eq([100, 200])
+      @stats.timers["test.timer"].should eq([100.0, 200.0])
+    end
+
+    it "should handle timers that are floats" do
+      update = "test.timer:3.14159|t"
+      StatsdServer::Proto::V1.parse_update(update, @stats)
+      @stats.timers["test.timer"].should eq([3.14159])
+
+      update = "test.multitimer:1,2,3.14159|t"
+      StatsdServer::Proto::V1.parse_update(update, @stats)
+      @stats.timers["test.multitimer"].should eq([1.0, 2.0, 3.14159])
     end
 
     it "should handle timers with invalid updates" do
