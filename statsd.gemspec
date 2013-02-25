@@ -25,5 +25,5 @@ Gem::Specification.new do |spec|
 
   spec.author = "Pete Fritchman"
   spec.email = "petef@databits.net"
-  spec.homepage = "https://github.com/fetep/ruby-statsd"
+  spec.homepage = "https://github.com/fetep/ruby-statsdserver"
 end
