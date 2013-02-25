@@ -18,10 +18,6 @@ Gem::Specification.new do |spec|
   spec.add_runtime_dependency("parseconfig")
   spec.add_runtime_dependency("sysexits")
 
-  # Optional dependencies
-  spec.add_development_dependency("bunny")      # AMQP output support
-  spec.add_development_dependency("em-zeromq")  # ZeroMQ input support
-
   spec.files = files
   spec.require_paths << "lib"
   spec.bindir = "bin"
