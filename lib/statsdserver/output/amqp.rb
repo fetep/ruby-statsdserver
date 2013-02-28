@@ -44,7 +44,8 @@ class StatsdServer::Output
 
     private
     def connect
-      bunny = Bunny.new(@opts)
+      opts_sym = Hash[@opts.map { |k,v| [k.to_sym,v] }]
+      bunny = Bunny.new(opts_sym)
       bunny.start
 
       exchange = bunny.exchange(
