@@ -16,11 +16,11 @@ class StatsdServer::Output
       end
 
       if opts["exchange_type"].nil?
-        raise ArgumentError, "missing host in [output:tcp] config section"
+        raise ArgumentError, "missing host in [output:amqp] config section"
       end
 
       if opts["exchange_name"].nil?
-        raise ArgumentError, "missing port in [output:tcp] config section"
+        raise ArgumentError, "missing port in [output:amqp] config section"
       end
 
       @opts = opts
